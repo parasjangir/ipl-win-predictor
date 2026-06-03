@@ -1,0 +1,16 @@
+# Raw + large generated data -- regenerate any time with:
+#   python download_data.py && python lesson1_build_dataset.py
+data/raw/
+data/deliveries.csv
+data/win_prob_training.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
