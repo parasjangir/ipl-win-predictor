@@ -329,3 +329,226 @@ def battle_by_season(batter: str, bowler: str) -> pd.DataFrame:
     runs = sub.groupby("season_year")["runs_off_bat"].sum().rename("runs")
     balls = sub[sub["wides"].isna()].groupby("season_year").size().rename("balls")
     return pd.concat([runs, balls], axis=1).fillna(0).reset_index()
+
+
+# ==========================================================================
+# Player photos -- curated Wikipedia map + on-demand fetch (avatar fallback)
+# ==========================================================================
+import json as _json
+import ssl as _ssl
+import urllib.parse as _uparse
+import urllib.request as _urequest
+
+# Cricsheet name -> exact Wikipedia title (so we never grab the wrong page).
+PLAYER_WIKI = {
+    "V Kohli": "Virat Kohli", "RG Sharma": "Rohit Sharma", "MS Dhoni": "MS Dhoni",
+    "AB de Villiers": "AB de Villiers", "CH Gayle": "Chris Gayle",
+    "DA Warner": "David Warner (cricketer)", "S Dhawan": "Shikhar Dhawan",
+    "SK Raina": "Suresh Raina", "JJ Bumrah": "Jasprit Bumrah", "YS Chahal": "Yuzvendra Chahal",
+    "Rashid Khan": "Rashid Khan (cricketer)", "AD Russell": "Andre Russell",
+    "KA Pollard": "Kieron Pollard", "SL Malinga": "Lasith Malinga", "B Kumar": "Bhuvneshwar Kumar",
+    "HH Pandya": "Hardik Pandya", "RA Jadeja": "Ravindra Jadeja", "R Ashwin": "Ravichandran Ashwin",
+    "KL Rahul": "KL Rahul", "DJ Bravo": "Dwayne Bravo", "AT Rayudu": "Ambati Rayudu",
+    "SR Watson": "Shane Watson", "G Gambhir": "Gautam Gambhir", "V Sehwag": "Virender Sehwag",
+    "SR Tendulkar": "Sachin Tendulkar", "JC Buttler": "Jos Buttler", "F du Plessis": "Faf du Plessis",
+    "Q de Kock": "Quinton de Kock", "GJ Maxwell": "Glenn Maxwell", "MM Ali": "Moeen Ali",
+    "SP Narine": "Sunil Narine", "Mohammed Shami": "Mohammed Shami", "Mohammed Siraj": "Mohammed Siraj",
+    "K Rabada": "Kagiso Rabada", "TA Boult": "Trent Boult", "PJ Cummins": "Pat Cummins",
+    "MA Starc": "Mitchell Starc", "A Nehra": "Ashish Nehra", "Harbhajan Singh": "Harbhajan Singh",
+    "DW Steyn": "Dale Steyn", "RR Pant": "Rishabh Pant", "Shubman Gill": "Shubman Gill",
+    "SV Samson": "Sanju Samson", "SA Yadav": "Suryakumar Yadav", "KD Karthik": "Dinesh Karthik",
+    "RV Uthappa": "Robin Uthappa", "Yuvraj Singh": "Yuvraj Singh", "BB McCullum": "Brendon McCullum",
+    "AC Gilchrist": "Adam Gilchrist", "EJG Morgan": "Eoin Morgan", "Z Khan": "Zaheer Khan",
+    "MK Pandey": "Manish Pandey", "WP Saha": "Wriddhiman Saha", "PP Chawla": "Piyush Chawla",
+    "JD Unadkat": "Jaydev Unadkat", "N Rana": "Nitish Rana", "Sandeep Sharma": "Sandeep Sharma (cricketer)",
+}
+
+
+@st.cache_data(show_spinner=False)
+def player_photo_url(name: str) -> str:
+    """Best-effort headshot URL from Wikipedia for known stars, else "" (the UI
+    then shows a clean avatar). Cached, one network call per player, never raises.
+    """
+    title = PLAYER_WIKI.get(name)
+    if not title:
+        return ""
+    try:
+        import certifi
+        ctx = _ssl.create_default_context(cafile=certifi.where())
+        q = _uparse.quote(title)
+        url = (f"https://en.wikipedia.org/w/api.php?action=query&titles={q}"
+               f"&prop=pageimages&piprop=thumbnail&pithumbsize=240&format=json&redirects=1")
+        req = _urequest.Request(url, headers={"User-Agent": "PitchIQ/1.0 (portfolio project)"})
+        with _urequest.urlopen(req, timeout=5, context=ctx) as resp:
+            data = _json.load(resp)
+        for page in data.get("query", {}).get("pages", {}).values():
+            src = (page.get("thumbnail") or {}).get("source")
+            if src:
+                return src
+    except Exception:
+        pass
+    return ""
+
+
+# ==========================================================================
+# Bowler analytics
+# ==========================================================================
+@st.cache_data(show_spinner=False)
+def bowler_career(bowler: str) -> dict:
+    d = get_deliveries()
+    sub = d[d["bowler"] == bowler]
+    legal = sub[sub["wides"].isna() & sub["noballs"].isna()]
+    balls = int(len(legal))
+    conceded = int((sub["runs_off_bat"] + sub["wides"].fillna(0) + sub["noballs"].fillna(0)).sum())
+    wickets = int((sub["player_dismissed"].notna() & sub["wicket_type"].isin(BOWLER_WICKETS)).sum())
+    dots = int(((legal["runs_off_bat"] == 0) & (legal["extras"] == 0)).sum())
+    return {
+        "wickets": wickets, "balls": balls, "conceded": conceded,
+        "economy": conceded / (balls / 6) if balls else 0.0,
+        "average": conceded / wickets if wickets else float(conceded),
+        "sr": balls / wickets if wickets else 0.0,
+        "dot_pct": dots / balls * 100 if balls else 0.0,
+    }
+
+
+@st.cache_data(show_spinner=False)
+def bowler_phase(bowler: str) -> pd.DataFrame:
+    d = get_deliveries()
+    sub = d[d["bowler"] == bowler].copy()
+    sub["phase"] = _phase_of(sub["ball"])
+    sub["conc"] = sub["runs_off_bat"] + sub["wides"].fillna(0) + sub["noballs"].fillna(0)
+    sub["legal"] = (sub["wides"].isna() & sub["noballs"].isna()).astype(int)
+    g = sub.groupby("phase").agg(conc=("conc", "sum"), balls=("legal", "sum")).reset_index()
+    g["econ"] = g["conc"] / (g["balls"] / 6)
+    order = {"Powerplay": 0, "Middle": 1, "Death": 2}
+    return g.sort_values("phase", key=lambda s: s.map(order)).reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False)
+def bowler_by_season(bowler: str) -> pd.DataFrame:
+    d = get_deliveries()
+    sub = d[(d["bowler"] == bowler) & d["player_dismissed"].notna() & d["wicket_type"].isin(BOWLER_WICKETS)]
+    return sub.groupby("season_year").size().rename_axis("season_year").reset_index(name="wickets")
+
+
+@st.cache_data(show_spinner=False)
+def bowler_victims(bowler: str, n: int = 8) -> pd.DataFrame:
+    d = get_deliveries()
+    sub = d[(d["bowler"] == bowler) & d["player_dismissed"].notna() & d["wicket_type"].isin(BOWLER_WICKETS)]
+    return sub.groupby("player_dismissed").size().rename_axis("victim").reset_index(name="dismissals") \
+        .sort_values("dismissals", ascending=False).head(n)
+
+
+@st.cache_data(show_spinner=False)
+def bowler_dismissal_types(bowler: str) -> pd.DataFrame:
+    d = get_deliveries()
+    sub = d[(d["bowler"] == bowler) & d["player_dismissed"].notna() & d["wicket_type"].isin(BOWLER_WICKETS)]
+    return sub.groupby("wicket_type").size().rename_axis("type").reset_index(name="count") \
+        .sort_values("count", ascending=False)
+
+
+# ==========================================================================
+# Venue / pitch report
+# ==========================================================================
+@st.cache_data(show_spinner=False)
+def venue_list(min_matches: int = 5) -> list[str]:
+    vc = get_matches()["venue"].value_counts()
+    return sorted(vc[vc >= min_matches].index.tolist())
+
+
+@st.cache_data(show_spinner=False)
+def venue_report(venue: str) -> dict:
+    m = get_matches()
+    mv = m[m["venue"] == venue]
+    d = get_deliveries()
+    first = d[(d["venue"] == venue) & (d["innings"] == 1)].groupby("match_id")["total_runs"].sum()
+    bat_wins = int(pd.to_numeric(mv["winner_runs"], errors="coerce").notna().sum())
+    chase_wins = int(pd.to_numeric(mv["winner_wickets"], errors="coerce").notna().sum())
+    decided = bat_wins + chase_wins
+    return {
+        "matches": int(len(mv)),
+        "avg_first": float(first.mean()) if len(first) else 0.0,
+        "highest": int(first.max()) if len(first) else 0,
+        "pct_field": float(mv["toss_decision"].eq("field").mean() * 100),
+        "bat_win": bat_wins / decided * 100 if decided else 0.0,
+        "chase_win": chase_wins / decided * 100 if decided else 0.0,
+    }
+
+
+@st.cache_data(show_spinner=False)
+def venue_avg_by_season(venue: str) -> pd.DataFrame:
+    d = get_deliveries()
+    first = d[(d["venue"] == venue) & (d["innings"] == 1)].groupby(["season_year", "match_id"])["total_runs"].sum().reset_index()
+    return first.groupby("season_year")["total_runs"].mean().rename_axis("season_year").reset_index(name="avg_score")
+
+
+# ==========================================================================
+# Season explorer
+# ==========================================================================
+@st.cache_data(show_spinner=False)
+def season_list() -> list[int]:
+    return sorted(int(s) for s in get_matches()["season_year"].dropna().unique())
+
+
+@st.cache_data(show_spinner=False)
+def season_standings(season: int) -> pd.DataFrame:
+    m = get_matches()
+    ms = m[m["season_year"] == season]
+    return ms["winner"].value_counts().rename_axis("team").reset_index(name="wins")
+
+
+@st.cache_data(show_spinner=False)
+def season_orange_cap(season: int, n: int = 8) -> pd.DataFrame:
+    d = get_deliveries()
+    ds = d[d["season_year"] == season]
+    return ds.groupby("striker")["runs_off_bat"].sum().nlargest(n).rename_axis("striker").reset_index(name="runs")
+
+
+@st.cache_data(show_spinner=False)
+def season_purple_cap(season: int, n: int = 8) -> pd.DataFrame:
+    d = get_deliveries()
+    ds = d[(d["season_year"] == season) & d["wicket_type"].isin(BOWLER_WICKETS)]
+    return ds.groupby("bowler").size().nlargest(n).rename_axis("bowler").reset_index(name="wickets")
+
+
+@st.cache_data(show_spinner=False)
+def season_summary(season: int) -> dict:
+    m = get_matches()
+    ms = m[m["season_year"] == season].sort_values("date")
+    champion = ms["winner"].iloc[-1] if len(ms) and pd.notna(ms["winner"].iloc[-1]) else "—"
+    oc, pc = season_orange_cap(season, 1), season_purple_cap(season, 1)
+    return {
+        "matches": int(len(ms)), "champion": champion,
+        "orange": oc["striker"].iloc[0] if len(oc) else "—",
+        "orange_runs": int(oc["runs"].iloc[0]) if len(oc) else 0,
+        "purple": pc["bowler"].iloc[0] if len(pc) else "—",
+        "purple_wkts": int(pc["wickets"].iloc[0]) if len(pc) else 0,
+    }
+
+
+# ==========================================================================
+# Player comparison (radar)
+# ==========================================================================
+def _radar_vec(player: str) -> dict:
+    c = player_career(player)
+    ph = player_phase(player)
+
+    def phase_sr(name):
+        row = ph[ph["phase"] == name]
+        return float(row["sr"].iloc[0]) if len(row) else 0.0
+
+    boundary = (c["fours"] + c["sixes"]) / c["balls"] * 100 if c["balls"] else 0.0
+    return {
+        "Strike rate": c["sr"], "Average": c["avg"], "Boundary %": boundary,
+        "Powerplay SR": phase_sr("Powerplay"), "Death SR": phase_sr("Death"),
+    }
+
+
+@st.cache_data(show_spinner=False)
+def compare_metrics(a: str, b: str):
+    va, vb = _radar_vec(a), _radar_vec(b)
+    caps = {"Strike rate": 200, "Average": 55, "Boundary %": 25, "Powerplay SR": 200, "Death SR": 260}
+    labels = list(caps)
+    na = [min(va[l] / caps[l] * 100, 100) for l in labels]
+    nb = [min(vb[l] / caps[l] * 100, 100) for l in labels]
+    return labels, na, nb, va, vb

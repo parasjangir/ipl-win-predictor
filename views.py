@@ -281,9 +281,10 @@ def player_page() -> None:
     player = st.selectbox("Select a batter", batters, index=idx)
 
     c = an.player_career(player)
+    photo = an.player_photo_url(player)
     st.markdown(
         f"""<div style="display:flex;align-items:center;gap:16px;margin:2px 0 14px">
-        {ui.player_avatar(player, 76)}
+        {ui.player_face(player, photo, 76)}
         <div><div style="font-family:'Space Grotesk',sans-serif;font-size:1.55rem;font-weight:700;color:#fff">{player}</div>
         <div style="color:{ui.MUTED};font-size:0.85rem">{c['innings']} innings · {c['runs']:,} runs · SR {c['sr']:.1f}</div></div></div>""",
         unsafe_allow_html=True,
@@ -389,12 +390,13 @@ def battle_page() -> None:
         st.info(f"📭 {bat} and {bowl} have never met in the IPL (in our data). Try another pairing.")
         return
 
+    pbat, pbowl = an.player_photo_url(bat), an.player_photo_url(bowl)
     st.markdown(
         f"""<div style="display:flex;align-items:center;justify-content:center;gap:26px;margin:8px 0 18px">
-        <div style="text-align:center">{ui.player_avatar(bat, 78)}
+        <div style="text-align:center">{ui.player_face(bat, pbat, 80)}
         <div style="margin-top:8px;color:{ui.CYAN};font-weight:600">{bat}</div></div>
         <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:{ui.MUTED}">VS</div>
-        <div style="text-align:center">{ui.player_avatar(bowl, 78)}
+        <div style="text-align:center">{ui.player_face(bowl, pbowl, 80)}
         <div style="margin-top:8px;color:{ui.PINK};font-weight:600">{bowl}</div></div></div>""",
         unsafe_allow_html=True,
     )
@@ -434,3 +436,160 @@ def battle_page() -> None:
             st.plotly_chart(ui.style_fig(fig, height=330, legend=True), width="stretch")
         else:
             st.info("Not enough data for a seasonal split.")
+
+
+# ==========================================================================
+# PAGE -- Bowler Analytics
+# ==========================================================================
+def bowler_page() -> None:
+    ui.hero("BOWLER ANALYTICS", "bowling deep-dive · economy, wickets & favourite victims")
+    bowlers = an.bowler_list()
+    idx = bowlers.index("JJ Bumrah") if "JJ Bumrah" in bowlers else 0
+    bowler = st.selectbox("Select a bowler", bowlers, index=idx)
+    photo = an.player_photo_url(bowler)
+    k = an.bowler_career(bowler)
+    st.markdown(
+        f"""<div style="display:flex;align-items:center;gap:16px;margin:2px 0 14px">
+        {ui.player_face(bowler, photo, 76)}
+        <div><div style="font-family:'Space Grotesk',sans-serif;font-size:1.55rem;font-weight:700;color:#fff">{bowler}</div>
+        <div style="color:{ui.MUTED};font-size:0.85rem">{k['wickets']} wickets · econ {k['economy']:.2f} · {k['balls'] // 6} overs</div></div></div>""",
+        unsafe_allow_html=True,
+    )
+    ui.kpi_row([
+        dict(label="Wickets", value=k["wickets"], sub=f"average {k['average']:.1f}", accent=ui.CYAN),
+        dict(label="Economy", value=f"{k['economy']:.2f}", sub="runs per over", accent=ui.GREEN),
+        dict(label="Strike rate", value=f"{k['sr']:.1f}", sub="balls per wicket", accent=ui.VIOLET),
+        dict(label="Dot balls", value=f"{k['dot_pct']:.0f}%", sub="pressure", accent=ui.GOLD),
+    ])
+    st.write("")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("#### Economy by phase")
+        ph = an.bowler_phase(bowler)
+        fig = px.bar(ph, x="phase", y="econ")
+        fig.update_traces(marker_color=ui.GREEN)
+        st.plotly_chart(ui.style_fig(fig, height=330), width="stretch")
+    with c2:
+        st.markdown("#### Wickets by season")
+        s = an.bowler_by_season(bowler)
+        fig = px.bar(s, x="season_year", y="wickets")
+        fig.update_traces(marker_color=ui.CYAN)
+        st.plotly_chart(ui.style_fig(fig, height=330), width="stretch")
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown("#### Favourite victims")
+        v = an.bowler_victims(bowler).sort_values("dismissals")
+        fig = px.bar(v, x="dismissals", y="victim", orientation="h")
+        fig.update_traces(marker_color=ui.PINK)
+        st.plotly_chart(ui.style_fig(fig, height=360), width="stretch")
+    with c4:
+        st.markdown("#### How they take wickets")
+        dt = an.bowler_dismissal_types(bowler)
+        fig = go.Figure(go.Pie(labels=dt["type"], values=dt["count"], hole=0.6, sort=False))
+        fig.update_traces(marker_colors=ui.SEQ, textinfo="percent")
+        st.plotly_chart(ui.style_fig(fig, height=360, legend=True), width="stretch")
+
+
+# ==========================================================================
+# PAGE -- Venue / Pitch Report
+# ==========================================================================
+def venue_page() -> None:
+    ui.hero("VENUE · PITCH REPORT", "batting paradise or bowler's graveyard?")
+    venues = an.venue_list()
+    venue = st.selectbox("Select a venue", venues)
+    k = an.venue_report(venue)
+    ui.kpi_row([
+        dict(label="Matches", value=k["matches"], sub="hosted", accent=ui.CYAN),
+        dict(label="Avg 1st innings", value=f"{k['avg_first']:.0f}", sub=f"highest {k['highest']}", accent=ui.GOLD),
+        dict(label="Chose to field", value=f"{k['pct_field']:.0f}%", sub="at the toss", accent=ui.VIOLET),
+        dict(label="Chasing wins", value=f"{k['chase_win']:.0f}%", sub=f"batting first {k['bat_win']:.0f}%", accent=ui.GREEN),
+    ])
+    st.write("")
+    c1, c2 = st.columns([1.5, 1])
+    with c1:
+        st.markdown("#### Average 1st-innings score by season")
+        s = an.venue_avg_by_season(venue)
+        fig = px.line(s, x="season_year", y="avg_score", markers=True)
+        fig.update_traces(line_color=ui.CYAN, line_width=3)
+        st.plotly_chart(ui.style_fig(fig, height=360), width="stretch")
+    with c2:
+        st.markdown("#### Bat first vs chase")
+        fig = go.Figure(go.Pie(labels=["Batting first", "Chasing"], values=[k["bat_win"], k["chase_win"]],
+                               hole=0.6, marker_colors=[ui.GOLD, ui.GREEN], sort=False))
+        fig.update_traces(textinfo="percent")
+        st.plotly_chart(ui.style_fig(fig, height=360, legend=True), width="stretch")
+
+
+# ==========================================================================
+# PAGE -- Season Explorer
+# ==========================================================================
+def season_page() -> None:
+    ui.hero("SEASON EXPLORER", "standings, caps & champions, season by season")
+    seasons = an.season_list()
+    season = st.selectbox("Select a season", seasons, index=len(seasons) - 1)
+    k = an.season_summary(season)
+    ui.kpi_row([
+        dict(label="Champion", value=k["champion"], sub=f"{season}", accent=ui.GOLD),
+        dict(label="Matches", value=k["matches"], sub="played", accent=ui.CYAN),
+        dict(label="Orange Cap", value=k["orange"], sub=f"{k['orange_runs']} runs", accent=ui.VIOLET),
+        dict(label="Purple Cap", value=k["purple"], sub=f"{k['purple_wkts']} wickets", accent=ui.PINK),
+    ])
+    st.write("")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("#### Wins by team")
+        sd = an.season_standings(season).sort_values("wins")
+        fig = px.bar(sd, x="wins", y="team", orientation="h")
+        fig.update_traces(marker_color=ui.CYAN)
+        st.plotly_chart(ui.style_fig(fig, height=380), width="stretch")
+    with c2:
+        st.markdown("#### Orange Cap race")
+        oc = an.season_orange_cap(season).sort_values("runs")
+        fig = px.bar(oc, x="runs", y="striker", orientation="h")
+        fig.update_traces(marker_color=ui.GOLD)
+        st.plotly_chart(ui.style_fig(fig, height=380), width="stretch")
+
+
+# ==========================================================================
+# PAGE -- Player Compare
+# ==========================================================================
+def compare_page() -> None:
+    ui.hero("PLAYER COMPARE", "two batters, head to head")
+    batters = an.batter_list(min_balls=500)
+    c1, c2 = st.columns(2)
+    a = c1.selectbox("Batter A", batters, index=batters.index("V Kohli") if "V Kohli" in batters else 0)
+    b = c2.selectbox("Batter B", batters, index=batters.index("RG Sharma") if "RG Sharma" in batters else 1)
+    if a == b:
+        st.warning("Pick two different batters.")
+        return
+
+    ca, cb = an.player_career(a), an.player_career(b)
+    pa, pb = an.player_photo_url(a), an.player_photo_url(b)
+    f1, f2 = st.columns(2)
+    f1.markdown(
+        f"""<div style="display:flex;align-items:center;gap:14px">{ui.player_face(a, pa, 70)}
+        <div><div style="font-weight:700;font-size:1.2rem;color:{ui.CYAN}">{a}</div>
+        <div style="color:{ui.MUTED};font-size:0.8rem">{ca['runs']:,} runs · SR {ca['sr']:.1f} · avg {ca['avg']:.1f}</div></div></div>""",
+        unsafe_allow_html=True,
+    )
+    f2.markdown(
+        f"""<div style="display:flex;align-items:center;gap:14px">{ui.player_face(b, pb, 70)}
+        <div><div style="font-weight:700;font-size:1.2rem;color:{ui.PINK}">{b}</div>
+        <div style="color:{ui.MUTED};font-size:0.8rem">{cb['runs']:,} runs · SR {cb['sr']:.1f} · avg {cb['avg']:.1f}</div></div></div>""",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+
+    labels, na, nb, va, vb = an.compare_metrics(a, b)
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(r=na + [na[0]], theta=labels + [labels[0]], fill="toself",
+                                  name=a, line_color=ui.CYAN, fillcolor="rgba(34,211,238,0.18)"))
+    fig.add_trace(go.Scatterpolar(r=nb + [nb[0]], theta=labels + [labels[0]], fill="toself",
+                                  name=b, line_color=ui.PINK, fillcolor="rgba(244,113,181,0.18)"))
+    fig.update_layout(
+        polar=dict(bgcolor="rgba(0,0,0,0)",
+                   radialaxis=dict(visible=True, range=[0, 100], showticklabels=False, gridcolor="rgba(255,255,255,0.10)"),
+                   angularaxis=dict(gridcolor="rgba(255,255,255,0.10)")),
+    )
+    st.plotly_chart(ui.style_fig(fig, height=460, legend=True), width="stretch")
+    st.caption("Radar axes scaled 0–100 for a fair shape comparison; raw figures are shown above each player.")

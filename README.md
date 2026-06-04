@@ -1,4 +1,4 @@
-# 🏏 IPL Cricket Analytics & Win Predictor
+# 🏏 PitchIQ — IPL Cricket Analytics Platform
 
 An end-to-end data science project on **Indian Premier League** cricket — from
 raw ball-by-ball data all the way to a deployed, interactive web app that
@@ -50,18 +50,26 @@ We transform these into:
 | `data/deliveries.csv` | one row per ball | ~260,000 |
 | `data/matches.csv` | one row per match | ~1,240 |
 
-## 🖥️ The analytics platform (`app.py`)
+## 🖥️ PitchIQ — the analytics platform (`app.py`)
 
-A six-page interactive web app — dark "futuristic" theme, Plotly charts:
+A **ten-page** interactive web app — dark theme, Plotly charts, always-visible
+top-bar navigation, and real player photos:
 
 | Page | What it does |
 |------|--------------|
 | 🛰️ Command Center | League KPIs, scoring inflation, top franchises, the rise of chasing |
-| 🔬 Team Deep Dive | Any franchise: win-rate by season, top players, record vs every opponent, fortress venues |
-| 👤 Player Analytics | Any batter: career stats, acceleration curve, "Scoring DNA", auto-detected strong/weak phases & nemesis bowlers |
-| 🥊 Player Battles | Batter-vs-bowler matchups (e.g. Kohli vs Bumrah): balls, runs, SR, dismissals, season-by-season |
+| 🔬 Team Deep Dive | Win-rate by season, top players, record vs every opponent, fortress venues |
 | ⚔️ Head to Head | Any two franchises, all-time |
+| 👤 Player Analytics | Any batter: career stats, acceleration curve, Scoring DNA, auto strengths/weaknesses & nemesis bowlers |
+| 🎳 Bowler Analytics | Any bowler: economy by phase, wickets by season, favourite victims, dismissal types |
+| 🥊 Player Battles | Batter-vs-bowler matchups (e.g. Kohli vs Bumrah): balls, runs, SR, dismissals |
+| ⚖️ Player Compare | Two batters on a normalised radar (SR, average, boundary %, phase strengths) |
+| 🏟️ Venues | Per-ground pitch report: avg scores, toss bias, bat-first vs chase win % |
+| 📅 Seasons | Standings, Orange & Purple Cap races, champions, season by season |
 | 🎯 Win Predictor | The ML model as a live win-probability gauge + what-if curve |
+
+Player photos come from Wikipedia for known stars (a curated name→title map),
+with a clean gradient avatar fallback for everyone else.
 
 > *Note on wagon wheels:* true shot-placement charts need ball-tracking
 > (Hawk-Eye) data, which isn't in the free Cricsheet feed. Rather than fake it,

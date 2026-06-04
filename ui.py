@@ -136,6 +136,17 @@ def player_avatar(name: str, size: int = 72) -> str:
     )
 
 
+def player_face(name: str, photo_url: str = "", size: int = 76) -> str:
+    """A real circular photo when we have one, otherwise the gradient avatar."""
+    if photo_url:
+        return (
+            f'<img src="{photo_url}" alt="{name}" title="{name}" '
+            f'style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;flex:0 0 auto;'
+            f'box-shadow:0 6px 18px rgba(0,0,0,0.45);border:2px solid rgba(34,211,238,0.40)">'
+        )
+    return player_avatar(name, size)
+
+
 def style_fig(fig, height: int = 340, legend: bool = False):
     """Apply the shared dark/transparent Plotly look to any figure."""
     fig.update_layout(
