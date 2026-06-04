@@ -1,12 +1,7 @@
 """
-app.py -- IPL Intelligence Platform (Phase 4, Streamlit).
+app.py -- IPL Intel · a multi-page IPL analytics platform (Streamlit).
 
-A multi-page analytics platform:
-  * Command Center  -- league-wide dashboard
-  * Team Deep Dive  -- full report on any franchise
-  * Head to Head    -- franchise vs franchise
-  * Win Predictor   -- live ball-by-ball chase probability (ML model)
-
+Navigation is an always-visible TOP BAR (no collapsible sidebar).
 Run locally:  streamlit run app.py
 """
 from __future__ import annotations
@@ -17,24 +12,42 @@ import ui
 from views import (battle_page, dashboard_page, h2h_page, player_page,
                    predictor_page, team_page)
 
-st.set_page_config(page_title="IPL Intelligence", page_icon="🏏", layout="wide",
-                   initial_sidebar_state="expanded")
+st.set_page_config(page_title="IPL Intel", page_icon="🏏", layout="wide",
+                   initial_sidebar_state="collapsed")
 ui.inject_css()
 
-with st.sidebar:
-    ui.sidebar_brand()
+PAGES = {
+    "🛰️ Command Center": dashboard_page,
+    "🔬 Team Deep Dive": team_page,
+    "👤 Player Analytics": player_page,
+    "🥊 Player Battles": battle_page,
+    "⚔️ Head to Head": h2h_page,
+    "🎯 Win Predictor": predictor_page,
+}
 
-pages = [
-    st.Page(dashboard_page, title="Command Center", icon="🛰️", default=True),
-    st.Page(team_page, title="Team Deep Dive", icon="🔬"),
-    st.Page(player_page, title="Player Analytics", icon="👤"),
-    st.Page(battle_page, title="Player Battles", icon="🥊"),
-    st.Page(h2h_page, title="Head to Head", icon="⚔️"),
-    st.Page(predictor_page, title="Win Predictor", icon="🎯"),
-]
-st.navigation(pages).run()
+ui.top_header()
 
-with st.sidebar:
-    st.markdown("<div style='color:#5b6680;font-size:0.7rem;margin-top:1rem'>"
-                "Data: Cricsheet · Model: logistic regression (AUC 0.875)<br>"
-                "Built by Paras Jangir</div>", unsafe_allow_html=True)
+if "page" not in st.session_state or st.session_state.page not in PAGES:
+    st.session_state.page = next(iter(PAGES))
+
+# --- Top navigation bar: one button per page, active page highlighted ---
+nav_cols = st.columns(len(PAGES))
+for col, label in zip(nav_cols, PAGES):
+    is_active = st.session_state.page == label
+    if col.button(label, width="stretch", type="primary" if is_active else "secondary"):
+        st.session_state.page = label
+        st.rerun()
+
+st.markdown(
+    "<hr style='margin:6px 0 18px 0;border:none;border-top:1px solid rgba(255,255,255,0.08)'>",
+    unsafe_allow_html=True,
+)
+
+# --- Render the selected page ---
+PAGES[st.session_state.page]()
+
+st.markdown(
+    "<div style='text-align:center;color:#4d5874;font-size:0.72rem;margin-top:2.5rem'>"
+    "IPL Intel · data: Cricsheet · model: logistic regression (AUC 0.875) · built by Paras Jangir</div>",
+    unsafe_allow_html=True,
+)

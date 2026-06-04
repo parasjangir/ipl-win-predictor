@@ -281,6 +281,13 @@ def player_page() -> None:
     player = st.selectbox("Select a batter", batters, index=idx)
 
     c = an.player_career(player)
+    st.markdown(
+        f"""<div style="display:flex;align-items:center;gap:16px;margin:2px 0 14px">
+        {ui.player_avatar(player, 76)}
+        <div><div style="font-family:'Space Grotesk',sans-serif;font-size:1.55rem;font-weight:700;color:#fff">{player}</div>
+        <div style="color:{ui.MUTED};font-size:0.85rem">{c['innings']} innings · {c['runs']:,} runs · SR {c['sr']:.1f}</div></div></div>""",
+        unsafe_allow_html=True,
+    )
     ui.kpi_row([
         dict(label="Runs", value=f"{c['runs']:,}", sub=f"{c['innings']} innings", accent=ui.CYAN),
         dict(label="Strike rate", value=f"{c['sr']:.1f}", sub=f"average {c['avg']:.1f}", accent=ui.VIOLET),
@@ -382,6 +389,15 @@ def battle_page() -> None:
         st.info(f"📭 {bat} and {bowl} have never met in the IPL (in our data). Try another pairing.")
         return
 
+    st.markdown(
+        f"""<div style="display:flex;align-items:center;justify-content:center;gap:26px;margin:8px 0 18px">
+        <div style="text-align:center">{ui.player_avatar(bat, 78)}
+        <div style="margin-top:8px;color:{ui.CYAN};font-weight:600">{bat}</div></div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:{ui.MUTED}">VS</div>
+        <div style="text-align:center">{ui.player_avatar(bowl, 78)}
+        <div style="margin-top:8px;color:{ui.PINK};font-weight:600">{bowl}</div></div></div>""",
+        unsafe_allow_html=True,
+    )
     ui.kpi_row([
         dict(label="Balls faced", value=b["balls"], sub=f"{b['dots']} dots", accent=ui.CYAN),
         dict(label="Runs", value=b["runs"], sub=f"{b['fours']}×4 · {b['sixes']}×6", accent=ui.VIOLET),

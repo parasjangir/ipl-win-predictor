@@ -1,0 +1,8 @@
+# Streamlit theme — keeps native widgets (buttons, selects) on-brand,
+# and is read automatically by Streamlit Community Cloud on deploy.
+[theme]
+base = "dark"
+primaryColor = "#22d3ee"
+backgroundColor = "#0c1428"
+secondaryBackgroundColor = "#121c34"
+textColor = "#E8EEF9"
