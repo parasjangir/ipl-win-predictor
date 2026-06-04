@@ -65,6 +65,15 @@ def dashboard_page() -> None:
         fig.add_hline(y=50, line_dash="dash", line_color=ui.MUTED)
         st.plotly_chart(ui.style_fig(fig, height=380), width="stretch")
 
+    with st.expander("ℹ️  About PitchIQ"):
+        st.markdown(
+            "**PitchIQ** turns ~296,000 ball-by-ball IPL deliveries (2008–2026, source: "
+            "[Cricsheet](https://cricsheet.org)) into an end-to-end analytics platform — "
+            "data engineering, EDA, statistics, and a calibrated machine-learning "
+            "**win-probability model** (ROC-AUC 0.875). "
+            "Built by **Paras Jangir** as a data-science portfolio project."
+        )
+
 
 # ==========================================================================
 # PAGE 2 -- Team Deep Dive
