@@ -61,12 +61,21 @@ def load_matches() -> pd.DataFrame:
 
 
 def load_deliveries() -> pd.DataFrame:
-    """Load deliveries.csv, clean team names, and add an integer season_year."""
-    deliveries = pd.read_csv(
-        DATA_DIR / "deliveries.csv",
-        parse_dates=["start_date"],
-        dtype={"season": "string"},  # season mixes '2017' and '2020/21' -> read as text
-    )
+    """Load the ball-by-ball table, clean team names, add an integer season_year.
+
+    Prefers the compact Parquet store (≈36x smaller, much faster) and falls back
+    to the CSV if Parquet isn't present.
+    """
+    parquet = DATA_DIR / "deliveries.parquet"
+    if parquet.exists():
+        deliveries = pd.read_parquet(parquet)
+        deliveries["start_date"] = pd.to_datetime(deliveries["start_date"])
+    else:
+        deliveries = pd.read_csv(
+            DATA_DIR / "deliveries.csv",
+            parse_dates=["start_date"],
+            dtype={"season": "string"},  # season mixes '2017' and '2020/21'
+        )
     deliveries = standardize_teams(deliveries, ["batting_team", "bowling_team"])
     deliveries["season_year"] = deliveries["start_date"].dt.year
     return deliveries

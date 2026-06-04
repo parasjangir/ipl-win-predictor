@@ -64,7 +64,11 @@ def build_deliveries() -> pd.DataFrame:
 
     out = DATA_DIR / "deliveries.csv"
     deliveries.to_csv(out, index=False)  # index=False -> don't write row numbers
-    print(f"[deliveries] wrote {len(deliveries):,} rows -> {out.name}")
+    # Also a compact Parquet copy (~36x smaller) that the web app loads fast.
+    deliveries.assign(season=deliveries["season"].astype(str)).to_parquet(
+        DATA_DIR / "deliveries.parquet", index=False
+    )
+    print(f"[deliveries] wrote {len(deliveries):,} rows -> {out.name} (+ .parquet)")
     return deliveries
 
 

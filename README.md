@@ -23,8 +23,10 @@ lesson that adds a new skill.
 - [x] **Phase 3 — Machine learning.** Predict the ball-by-ball **win
       probability** of a chasing team (logistic regression, ROC-AUC 0.875).
       → `lesson4_features.py`, `lesson5_train.py`, `lesson6_worm.py`
-- [x] **Phase 4 — Deployment.** Interactive **Streamlit** web app for live
-      win-probability (`streamlit run app.py`). → `app.py`, `winprob.py`
+- [x] **Phase 4 — Deployment.** A multi-page **Streamlit** analytics platform —
+      league dashboard, team deep-dive, player analytics, batter-vs-bowler
+      battles, head-to-head, and the live win predictor.
+      → `app.py` (`streamlit run app.py`)
 
 ## 🧰 Tech stack
 
@@ -47,6 +49,23 @@ We transform these into:
 |--------|-------|------|
 | `data/deliveries.csv` | one row per ball | ~260,000 |
 | `data/matches.csv` | one row per match | ~1,240 |
+
+## 🖥️ The analytics platform (`app.py`)
+
+A six-page interactive web app — dark "futuristic" theme, Plotly charts:
+
+| Page | What it does |
+|------|--------------|
+| 🛰️ Command Center | League KPIs, scoring inflation, top franchises, the rise of chasing |
+| 🔬 Team Deep Dive | Any franchise: win-rate by season, top players, record vs every opponent, fortress venues |
+| 👤 Player Analytics | Any batter: career stats, acceleration curve, "Scoring DNA", auto-detected strong/weak phases & nemesis bowlers |
+| 🥊 Player Battles | Batter-vs-bowler matchups (e.g. Kohli vs Bumrah): balls, runs, SR, dismissals, season-by-season |
+| ⚔️ Head to Head | Any two franchises, all-time |
+| 🎯 Win Predictor | The ML model as a live win-probability gauge + what-if curve |
+
+> *Note on wagon wheels:* true shot-placement charts need ball-tracking
+> (Hawk-Eye) data, which isn't in the free Cricsheet feed. Rather than fake it,
+> Player Analytics uses an honest run-type "Scoring DNA" breakdown.
 
 ## 📊 Sample output
 
@@ -110,13 +129,17 @@ ipl-analytics/
 ├── lesson4_features.py         # Phase 3: feature engineering -> training table
 ├── lesson5_train.py            # Phase 3: train + evaluate the win-prob model
 ├── lesson6_worm.py             # Phase 3: gradient boosting + win-prob worm
-├── winprob.py                  # Phase 4: model-serving helpers
-├── app.py                      # Phase 4: Streamlit web app
+├── ui.py                       # app: futuristic dark design system
+├── analytics.py                # app: cached league/team/player/battle analytics
+├── views.py                    # app: the six pages
+├── winprob.py                  # app: model-serving helpers
+├── app.py                      # app: Streamlit entry point + navigation
 ├── model/                      # saved trained model (.joblib)
 ├── figures/                    # generated charts
 └── data/
     ├── raw/                    # raw Cricsheet files (git-ignored)
     ├── matches.csv             # generated
+    ├── deliveries.parquet      # generated (compact, used by the app)
     └── deliveries.csv          # generated (git-ignored, large)
 ```
 
