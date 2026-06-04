@@ -25,7 +25,7 @@ def _model():
 # PAGE 1 -- League Command Center
 # ==========================================================================
 def dashboard_page() -> None:
-    ui.hero("IPL COMMAND CENTER", "17 seasons · 2008–2026 · ball-by-ball intelligence")
+    ui.hero("IPL COMMAND CENTER", "every IPL season · 2008–2026 · ball-by-ball intelligence")
 
     k = an.league_kpis()
     ui.kpi_row([
